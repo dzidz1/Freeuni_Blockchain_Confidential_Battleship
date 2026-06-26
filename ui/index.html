@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Confidential Battleship</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+/* ── Design tokens ───────────────────────────────────────────────── */
+:root {
+  --bg:      #04091a;
+  --bg2:     #070f22;
+  --card:    #0a1628;
+  --border:  #142340;
+  --border2: #1e3a6a;
+  --text:    #c8dcff;
+  --muted:   #4a6a99;
+  --cyan:    #00c8f0;
+  --blue:    #2563eb;
+  --green:   #00e676;
+  --red:     #ff3a3a;
+  --orange:  #f59e0b;
+  --purple:  #a855f7;
+  --ship:    #1e40af;
+  --cell:    74px;
+  --gap:     5px;
+  --radius:  6px;
+  --font-ui: 'Orbitron', 'Courier New', monospace;
+  --font-body: 'Share Tech Mono', 'Courier New', monospace;
+}
+
+/* ── Reset ───────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 17px; }
+
+body {
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(rgba(0,200,240,0.04) 1px, transparent 1px),
+    radial-gradient(rgba(0,200,240,0.02) 1px, transparent 1px);
+  background-size: 28px 28px, 14px 14px;
+  background-position: 0 0, 7px 7px;
+  color: var(--text);
+  font-family: var(--font-body);
+  min-height: 100vh;
+  padding: 22px 28px 48px;
+}
+
+/* ── Screens ─────────────────────────────────────────────────────── */
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ── Header ──────────────────────────────────────────────────────── */
+.hdr {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border2);
+  gap: 16px;
+  position: relative;
+}
+.hdr::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 0;
+  width: 200px; height: 1px;
+  background: linear-gradient(90deg, var(--cyan), transparent);
+}
+.hdr-eyebrow {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  color: var(--cyan);
+  letter-spacing: 0.2em;
+  margin-bottom: 6px;
+  opacity: 0.7;
+}
+.hdr-left h1 {
+  font-family: var(--font-ui);
+  font-size: 1.5rem;
+  letter-spacing: 0.06em;
+  color: var(--cyan);
+  text-shadow: 0 0 20px rgba(0,200,240,0.5), 0 0 40px rgba(0,200,240,0.2);
+  margin-bottom: 6px;
+}
+.hdr-meta {
+  font-size: 0.82rem;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.hdr-right {
+  text-align: right;
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 2;
+  font-family: var(--font-body);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+}
+
+/* ── Badges ──────────────────────────────────────────────────────── */
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 3px;
+  font-family: var(--font-ui);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+.b-gray   { background: #0d1a2d; color: var(--muted); border: 1px solid var(--border); }
+.b-yellow { background: #1a1000; color: #fbbf24;       border: 1px solid #78350f; }
+.b-blue   { background: #0a1628; color: var(--cyan);   border: 1px solid #1e3a6a; box-shadow: 0 0 8px rgba(0,200,240,0.2); }
+.b-green  { background: #001a0d; color: var(--green);  border: 1px solid #065f46; box-shadow: 0 0 8px rgba(0,230,118,0.2); }
+
+/* ── Cards / surfaces ────────────────────────────────────────────── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 24px;
+  margin-bottom: 16px;
+  position: relative;
+}
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(0,200,240,0.03) 0%, transparent 60%);
+  pointer-events: none;
+}
+.card h2 {
+  font-family: var(--font-ui);
+  font-size: 0.95rem;
+  letter-spacing: 0.05em;
+  margin-bottom: 18px;
+  color: var(--text);
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────── */
+.btn {
+  display: inline-block;
+  padding: 12px 22px;
+  border-radius: var(--radius);
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  transition: all 0.18s ease;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+}
+.btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.07);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.btn:hover:not(:disabled)::after { opacity: 1; }
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.btn-full { width: 100%; }
+.btn-primary {
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+  color: #fff;
+  box-shadow: 0 0 20px rgba(37,99,235,0.4), 0 2px 8px rgba(0,0,0,0.4);
+}
+.btn-primary:hover:not(:disabled) {
+  box-shadow: 0 0 28px rgba(37,99,235,0.6), 0 2px 8px rgba(0,0,0,0.4);
+}
+.btn-success {
+  background: linear-gradient(135deg, #065f46, #059669);
+  color: #a7f3d0;
+  box-shadow: 0 0 20px rgba(5,150,105,0.35), 0 2px 8px rgba(0,0,0,0.4);
+}
+.btn-success:hover:not(:disabled) {
+  box-shadow: 0 0 28px rgba(0,230,118,0.4), 0 2px 8px rgba(0,0,0,0.4);
+}
+.btn-secondary {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border2);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.btn-sm { padding: 10px 20px; font-size: 0.85rem; }
+
+/* ── Input ───────────────────────────────────────────────────────── */
+input[type="text"] {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  width: 100%;
+  margin-bottom: 10px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+input[type="text"]:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 10px rgba(0,200,240,0.2);
+}
+
+/* ── Section labels ──────────────────────────────────────────────── */
+.section-title {
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+/* ── Setup ───────────────────────────────────────────────────────── */
+.setup-wrap { max-width: 760px; margin: 40px auto 0; }
+
+/* ── Commit screen ───────────────────────────────────────────────── */
+.commit-wrap { max-width: 760px; margin: 0 auto; }
+
+/* ── Player bar ──────────────────────────────────────────────────── */
+.player-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  position: relative;
+  overflow: hidden;
+}
+.player-bar::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--cyan), var(--blue));
+  box-shadow: 0 0 10px var(--cyan);
+}
+.avatar {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1e3a8a, #2563eb);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-ui);
+  font-size: 0.9rem; font-weight: 700;
+  color: #fff;
+  box-shadow: 0 0 14px rgba(37,99,235,0.5);
+  flex-shrink: 0;
+}
+.player-bar .label { color: var(--muted); font-size: 1rem; letter-spacing: 0.05em; }
+.player-bar .name  {
+  font-family: var(--font-ui);
+  font-weight: 700; font-size: 1.3rem;
+  color: var(--cyan);
+  text-shadow: 0 0 10px rgba(0,200,240,0.4);
+}
+.spacer { flex: 1; }
+.turn-text { font-family: var(--font-ui); font-size: 0.95rem; }
+
+/* ── Game boards ─────────────────────────────────────────────────── */
+.boards {
+  display: flex;
+  gap: 52px;
+  justify-content: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+.board-wrap { text-align: center; }
+.board-label {
+  font-family: var(--font-ui);
+  font-size: 0.68rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.board-label span {
+  color: var(--cyan);
+  text-shadow: 0 0 8px rgba(0,200,240,0.4);
+}
+
+/* Column/row labels */
+.grid-labeled {
+  display: inline-grid;
+  grid-template-columns: 22px repeat(5, var(--cell));
+  grid-template-rows:    22px repeat(5, var(--cell));
+  gap: var(--gap);
+}
+.axis-label {
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-ui);
+  font-size: 0.72rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+
+/* ── Grid cells ──────────────────────────────────────────────────── */
+.cell {
+  width: var(--cell); height: var(--cell);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem;
+  cursor: default;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  user-select: none;
+  background: linear-gradient(145deg, #080f20, #060c1a);
+  position: relative;
+}
+
+.cell.can-click { cursor: crosshair; }
+.cell.can-click:hover {
+  border-color: var(--cyan);
+  background: rgba(0,200,240,0.06);
+  box-shadow: 0 0 14px rgba(0,200,240,0.25), inset 0 0 10px rgba(0,200,240,0.05);
+}
+
+/* Ship on my board */
+.cell.ship {
+  background: linear-gradient(145deg, #1e3a8a, #1d4ed8);
+  border-color: #3b82f6;
+  box-shadow: 0 0 16px rgba(59,130,246,0.45), inset 0 0 10px rgba(96,165,250,0.15);
+  font-size: 1.7rem;
+}
+
+/* Ship placement selection */
+.cell.selecting {
+  background: linear-gradient(145deg, #1d4ed8, #2563eb);
+  border-color: #60a5fa;
+  box-shadow: 0 0 18px rgba(96,165,250,0.5), inset 0 0 8px rgba(147,197,253,0.1);
+  font-size: 1.7rem;
+}
+
+/* Opponent hit MY ship */
+.cell.hit-on-me {
+  background: linear-gradient(145deg, #450a0a, #7f1d1d);
+  border-color: var(--red);
+  box-shadow: 0 0 18px rgba(255,58,58,0.5), inset 0 0 10px rgba(255,58,58,0.1);
+  color: #fca5a5;
+  font-size: 1.7rem;
+}
+
+/* Opponent missed my board */
+.cell.miss-on-me {
+  background: #06101f;
+  border-color: #1a2d4a;
+  color: #2a4060;
+  font-size: 1.2rem;
+}
+
+/* I HIT enemy ship */
+.cell.my-hit {
+  background: linear-gradient(145deg, #052e16, #065f46);
+  border-color: var(--green);
+  box-shadow: 0 0 18px rgba(0,230,118,0.5), inset 0 0 10px rgba(0,230,118,0.1);
+  color: #6ee7b7;
+  font-size: 1.6rem;
+}
+
+/* I missed enemy board */
+.cell.my-miss {
+  background: #06101f;
+  border-color: #1a2d4a;
+  color: #2a4060;
+  font-size: 1.2rem;
+}
+
+/* Bomb dropped — FHE computing */
+.cell.pending-bomb {
+  background: linear-gradient(145deg, #1e0840, #2d1060);
+  border-color: var(--purple);
+  box-shadow: 0 0 18px rgba(168,85,247,0.5), inset 0 0 10px rgba(168,85,247,0.1);
+  color: #d8b4fe;
+  font-size: 1.7rem;
+  animation: bomb-drop 0.25s ease-out forwards, fhe-pulse 0.65s ease-in-out 0.25s infinite;
+}
+@keyframes bomb-drop {
+  from { transform: translateY(-28px); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+@keyframes fhe-pulse {
+  0%,100% { opacity: 1; box-shadow: 0 0 18px rgba(168,85,247,0.5); }
+  50%      { opacity: 0.55; box-shadow: 0 0 30px rgba(168,85,247,0.85); }
+}
+
+/* Explosion flash */
+.cell.exploding {
+  background: linear-gradient(145deg, #451005, #7c2d12);
+  border-color: var(--orange);
+  box-shadow: 0 0 26px rgba(245,158,11,0.75), inset 0 0 14px rgba(245,158,11,0.2);
+  font-size: 1.8rem;
+  animation: explode 0.48s ease-out forwards;
+}
+@keyframes explode {
+  0%   { transform: scale(0.65); opacity: 0.6; }
+  40%  { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+
+/* ── Messages ────────────────────────────────────────────────────── */
+.msg {
+  padding: 14px 20px;
+  border-radius: 8px;
+  margin-bottom: 14px;
+  font-size: 1rem;
+  line-height: 1.6;
+  display: none;
+  border-left: 3px solid;
+}
+.msg.show { display: block; }
+.msg-info    { background: #091628; border-color: var(--cyan);   color: #93c5fd; }
+.msg-success { background: #031a0d; border-color: var(--green);  color: #6ee7b7; }
+.msg-wait    { background: #0d0d0d; border-color: #334155;       color: #94a3b8; }
+.msg-pass    {
+  background: #170d00;
+  border-color: var(--orange);
+  color: #fcd34d;
+  animation: pass-glow 2s ease-in-out infinite;
+}
+@keyframes pass-glow {
+  0%,100% { box-shadow: none; }
+  50%      { box-shadow: 0 0 14px rgba(245,158,11,0.2); }
+}
+
+/* ── Info bar ────────────────────────────────────────────────────── */
+.info-bar {
+  display: flex;
+  gap: 0;
+  justify-content: center;
+  align-items: stretch;
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.info-player {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+}
+.info-player:first-child { border-right: 1px solid var(--border2); }
+.info-player-name {
+  font-family: var(--font-ui);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.info-hits {
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  font-weight: 700;
+}
+.info-hits.alice { color: var(--cyan); }
+.info-hits.bob   { color: #a78bfa; }
+.pip-row { display: flex; gap: 7px; align-items: center; }
+.pip {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--border2);
+  border: 1px solid var(--border);
+  transition: all 0.3s;
+}
+.pip.hit-alice {
+  background: var(--cyan);
+  border-color: var(--cyan);
+  box-shadow: 0 0 8px rgba(0,200,240,0.7);
+}
+.pip.hit-bob {
+  background: #a78bfa;
+  border-color: #a78bfa;
+  box-shadow: 0 0 8px rgba(167,139,250,0.7);
+}
+
+/* ── Shot log ────────────────────────────────────────────────────── */
+.log-wrap { margin-top: 4px; }
+.log {
+  max-height: 150px;
+  overflow-y: auto;
+  padding: 12px 16px;
+  background: #020810;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 1rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) transparent;
+}
+.log::-webkit-scrollbar { width: 4px; }
+.log::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+.log-line { padding: 3px 0; border-bottom: 1px solid #0a1020; }
+.log-line:last-child { border-bottom: none; }
+.log-hit  { color: #fca5a5; }
+.log-miss { color: #334155; }
+.log-empty { color: var(--muted); font-style: italic; }
+
+/* ── Winner ──────────────────────────────────────────────────────── */
+.winner-box {
+  max-width: 420px;
+  margin: 60px auto;
+  text-align: center;
+  padding: 44px 32px;
+  background: linear-gradient(145deg, #0a1628, #0d1f3c);
+  border: 1px solid;
+  border-color: var(--green);
+  border-radius: 16px;
+  box-shadow: 0 0 40px rgba(0,230,118,0.2), 0 0 80px rgba(0,230,118,0.08);
+  animation: winner-appear 0.5s ease-out;
+}
+@keyframes winner-appear {
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.winner-box h2 {
+  font-family: var(--font-ui);
+  font-size: 2.4rem;
+  color: var(--green);
+  text-shadow: 0 0 24px rgba(0,230,118,0.6);
+  margin-bottom: 10px;
+  letter-spacing: 0.06em;
+}
+.winner-box .trophy { font-size: 3rem; margin-bottom: 12px; display: block; }
+.winner-box p  { color: var(--muted); margin-bottom: 24px; font-size: 1rem; line-height: 1.6; }
+.winner-name {
+  font-family: var(--font-ui);
+  font-size: 1.3rem;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+/* ── Handoff screen ──────────────────────────────────────────────── */
+.handoff-box {
+  max-width: 440px;
+  margin: 80px auto;
+  text-align: center;
+  padding: 52px 36px;
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.handoff-box::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(0,200,240,0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+.handoff-lock { font-size: 3rem; margin-bottom: 20px; display: block; }
+.handoff-label {
+  font-family: var(--font-ui);
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.handoff-player {
+  font-family: var(--font-ui);
+  font-size: 2.6rem;
+  font-weight: 700;
+  color: var(--cyan);
+  text-shadow: 0 0 24px rgba(0,200,240,0.5);
+  margin-bottom: 6px;
+  letter-spacing: 0.06em;
+}
+.handoff-sub {
+  font-size: 0.88rem;
+  color: var(--muted);
+  margin-bottom: 32px;
+  line-height: 1.7;
+}
+</style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────── -->
+<div class="hdr">
+  <div class="hdr-left">
+    <div class="hdr-eyebrow">// CLASSIFIED — FHE ENCRYPTED //</div>
+    <h1>⚓ CONFIDENTIAL BATTLESHIP</h1>
+    <div class="hdr-meta">
+      GAME <span id="gid-label">—</span>
+      &nbsp;<span id="phase-badge" class="badge b-gray">WAITING</span>
+    </div>
+  </div>
+  <div class="hdr-right" id="hdr-info"></div>
+</div>
+
+<!-- ── Setup ──────────────────────────────────────── -->
+<div id="screen-setup" class="screen active">
+  <div class="setup-wrap">
+    <div class="card" style="padding: 36px 40px;">
+      <h2 style="font-size:1.3rem; margin-bottom:20px;">INITIALIZE GAME</h2>
+      <p style="font-size:1rem; color:var(--muted); margin-bottom:28px; line-height:1.8;">
+        Both players share this browser tab. Each player secretly places
+        <span style="color:var(--cyan);">3 ships</span> on a 5×5 grid.
+        Boards are <span style="color:var(--cyan);">FHE-encrypted on-chain</span> —
+        the opponent genuinely cannot read your layout.
+      </p>
+      <button class="btn btn-primary btn-full" onclick="createGame()"
+              style="font-size:1rem; padding:16px;">
+        ▶ &nbsp; START NEW GAME
+      </button>
+    </div>
+    <div class="card" style="padding: 28px 40px; font-size:0.95rem; color:var(--muted); line-height:2.1;">
+      <span style="color:var(--cyan);">RULES</span> &nbsp;·&nbsp;
+      5×5 grid &nbsp;·&nbsp; 3 ships each &nbsp;·&nbsp;
+      alternate firing &nbsp;·&nbsp; first to 3 hits wins<br>
+      <span style="color:var(--cyan);">PRIVACY</span> &nbsp;·&nbsp;
+      shot coordinates are public &nbsp;·&nbsp;
+      only the fired cell's hit/miss is revealed &nbsp;·&nbsp;
+      all other cells stay encrypted
+    </div>
+  </div>
+</div>
+
+<!-- ── Board commit ────────────────────────────────── -->
+<div id="screen-commit" class="screen">
+  <div class="commit-wrap">
+    <div id="commit-msg" class="msg msg-info show"></div>
+
+    <div style="text-align:center;">
+      <div class="board-label" id="commit-subtitle"></div>
+      <div class="grid-labeled" id="commit-grid-wrap"></div>
+
+      <div style="margin-top:14px; color:var(--muted); font-family:var(--font-ui); font-size:0.75rem; letter-spacing:0.1em;">
+        <span id="ship-count">0</span> / 3 SHIPS PLACED
+      </div>
+
+      <div style="margin-top:16px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+        <button id="commit-btn" class="btn btn-success" onclick="commitBoard()" disabled>
+          🔒 &nbsp;ENCRYPT &amp; COMMIT BOARD
+        </button>
+        <button class="btn btn-ghost" onclick="clearShips()">CLEAR</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Game ───────────────────────────────────────── -->
+<div id="screen-game" class="screen">
+
+  <div class="player-bar">
+    <div class="avatar" id="player-avatar">A</div>
+    <div>
+      <div class="label">PLAYING AS</div>
+      <div class="name" id="active-name">Alice</div>
+    </div>
+    <div class="spacer"></div>
+    <span class="turn-text" id="turn-text"></span>
+    <button class="btn btn-secondary btn-sm" id="switch-btn" onclick="switchPlayer()">
+      Switch to Bob
+    </button>
+  </div>
+
+  <div id="game-msg" class="msg"></div>
+
+  <div class="boards">
+    <div class="board-wrap">
+      <div class="board-label">YOUR BOARD</div>
+      <div class="grid-labeled" id="my-board-wrap"></div>
+    </div>
+    <div class="board-wrap">
+      <div class="board-label"><span>OPPONENT'S BOARD</span> — click to fire</div>
+      <div class="grid-labeled" id="enemy-board-wrap"></div>
+    </div>
+  </div>
+
+  <div class="info-bar">
+    <div class="info-player">
+      <div>
+        <div class="info-player-name">ALICE</div>
+        <div class="info-hits alice"><span id="alice-hits">0</span> / 3</div>
+      </div>
+      <div class="pip-row" id="alice-pips">
+        <div class="pip"></div><div class="pip"></div><div class="pip"></div>
+      </div>
+    </div>
+    <div class="info-player">
+      <div>
+        <div class="info-player-name">BOB</div>
+        <div class="info-hits bob"><span id="bob-hits">0</span> / 3</div>
+      </div>
+      <div class="pip-row" id="bob-pips">
+        <div class="pip"></div><div class="pip"></div><div class="pip"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="log-wrap">
+    <div class="section-title">SHOT LOG</div>
+    <div class="log" id="shot-log"><div class="log-empty">No shots yet…</div></div>
+  </div>
+</div>
+
+<!-- ── Handoff screen ─────────────────────────────── -->
+<div id="screen-handoff" class="screen">
+  <div class="handoff-box">
+    <span class="handoff-lock">🔒</span>
+    <div class="handoff-label">PASS THE KEYBOARD TO</div>
+    <div class="handoff-player" id="handoff-name">Alice</div>
+    <div class="handoff-sub" id="handoff-sub"></div>
+    <button class="btn btn-primary" id="handoff-btn" onclick="confirmHandoff()"></button>
+  </div>
+</div>
+
+<!-- ── Game over ──────────────────────────────────── -->
+<div id="screen-over" class="screen">
+  <div class="winner-box">
+    <span class="trophy">🏆</span>
+    <h2>VICTORY</h2>
+    <div class="winner-name" id="winner-line"></div>
+    <p id="winner-detail"></p>
+    <button class="btn btn-primary" onclick="resetGame()">▶ &nbsp;PLAY AGAIN</button>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:3001';
+const NAMES = ['Alice', 'Bob'];
+const COL_LABELS = ['A','B','C','D','E'];
+
+/* ── State ──────────────────────────────────────────────────────── */
+
+let S = freshState();
+
+function freshState() {
+  return {
+    gameId:      null,
+    myIdx:       0,
+    ships:       [new Set(), new Set()],
+    committed:   [false, false],
+    phase:       0,
+    turn:        0,
+    shots:       [],
+    hits:        [0, 0],
+    winner:      null,
+    polling:     null,
+    firing:       false,
+    pendingCell:  null,
+    explodingCell: null,
+  };
+}
+
+/* ── Boot ───────────────────────────────────────────────────────── */
+
+async function init() {
+  const info = await api('GET', '/api/info').catch(() => null);
+  if (info) {
+    const sepolia = '0x8EB70ab88976ae9fD800395213a08d65bbd9E0a8';
+    document.getElementById('hdr-info').innerHTML =
+      `<div style="color:var(--muted);font-size:0.8rem;letter-spacing:0.08em;margin-bottom:8px;">VERIFIED ON-CHAIN</div>` +
+      `<a href="https://sepolia.etherscan.io/address/${sepolia}#code" target="_blank" style="` +
+        `color:var(--green);font-size:0.9rem;letter-spacing:0.06em;text-decoration:none;` +
+        `border:1px solid #065f46;border-radius:5px;padding:6px 12px;` +
+        `transition:box-shadow 0.15s;display:inline-block;` +
+      `" onmouseover="this.style.boxShadow='0 0 12px rgba(0,230,118,0.5)'" ` +
+         `onmouseout="this.style.boxShadow='none'">` +
+        `⬡ &nbsp;VIEW ON SEPOLIA ↗` +
+      `</a>`;
+  }
+}
+
+/* ── Setup ──────────────────────────────────────────────────────── */
+
+async function createGame() {
+  const data = await api('POST', '/api/create-game', {});
+  S.gameId = data.gameId;
+  S.myIdx  = 0;
+  setGidLabel(S.gameId);
+  goCommit();
+}
+
+/* ── Commit screen ──────────────────────────────────────────────── */
+
+function goCommit() {
+  showScreen('commit');
+  const player = NAMES[S.myIdx];
+  setEl('commit-msg',      `${player}: click cells to place your 3 ships. Your board will be FHE-encrypted — opponent cannot see it.`);
+  setEl('commit-subtitle', `${player}'s board — click to place ships`);
+  updateShipCount();
+  buildGridLabeled('commit-grid-wrap', 'commit', true);
+  paintCommitGrid();
+}
+
+function toggleShip(idx) {
+  const set = S.ships[S.myIdx];
+  if (set.has(idx)) { set.delete(idx); }
+  else if (set.size < 3) { set.add(idx); }
+  updateShipCount();
+  paintCommitGrid();
+}
+
+function clearShips() {
+  S.ships[S.myIdx].clear();
+  updateShipCount();
+  paintCommitGrid();
+}
+
+function updateShipCount() {
+  const n = S.ships[S.myIdx].size;
+  setEl('ship-count', n);
+  document.getElementById('commit-btn').disabled = (n !== 3);
+}
+
+function paintCommitGrid() {
+  const set = S.ships[S.myIdx];
+  for (let i = 0; i < 25; i++) {
+    const el = document.getElementById(`commit-${i}`);
+    if (!el) continue;
+    const isShip = set.has(i);
+    el.className   = 'cell can-click' + (isShip ? ' selecting' : '');
+    el.textContent = isShip ? '🚢' : '';
+  }
+}
+
+async function commitBoard() {
+  const btn = document.getElementById('commit-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Encrypting…';
+
+  let secs = 0;
+  const ticker = setInterval(() => {
+    secs++;
+    btn.textContent = `⏳ Encrypting… (${secs}s)`;
+  }, 1000);
+
+  try {
+    await api('POST', '/api/commit-board', {
+      gameId:    S.gameId,
+      playerIdx: S.myIdx,
+      cells:     [...S.ships[S.myIdx]],
+    });
+  } catch (e) {
+    clearInterval(ticker);
+    btn.disabled = false;
+    btn.textContent = '🔒 ENCRYPT & COMMIT BOARD';
+    showMsg('commit-msg', 'msg-wait', `Error: ${e.message}. Check Terminal 2 for details.`);
+    return;
+  }
+
+  clearInterval(ticker);
+  S.committed[S.myIdx] = true;
+  btn.textContent = '🔒 ENCRYPT & COMMIT BOARD';
+
+  const otherIdx = 1 - S.myIdx;
+  if (!S.committed[otherIdx]) {
+    S.myIdx = otherIdx;
+    goCommit();
+    return;
+  }
+
+  startPolling();
+  goGame();
+}
+
+/* ── Game screen ────────────────────────────────────────────────── */
+
+function goGame() {
+  buildGridLabeled('my-board-wrap',    'my',  false);
+  buildGridLabeled('enemy-board-wrap', 'enm', true);
+  // Always start from Alice (turn 0); handoff ensures the right person is seated
+  S.myIdx = 0;
+  showHandoff(0, 'Game started — Alice goes first');
+}
+
+function switchPlayer() {
+  const next = 1 - S.myIdx;
+  if (!S.committed[next]) { S.myIdx = next; goCommit(); return; }
+  showHandoff(next, `${NAMES[next]}: your turn to fire`);
+}
+
+let _handoffTarget = 0;
+
+function showHandoff(playerIdx, subtitle) {
+  _handoffTarget = playerIdx;
+  setEl('handoff-name',   NAMES[playerIdx]);
+  setEl('handoff-sub',    subtitle || '');
+  setEl('handoff-btn',    `I'm ${NAMES[playerIdx]} — Show my board`);
+  showScreen('handoff');
+}
+
+function confirmHandoff() {
+  S.myIdx = _handoffTarget;
+  hideMsg('game-msg');
+  showScreen('game');
+  updateGameUI();
+}
+
+function updateGameUI() {
+  const me  = S.myIdx;
+  const opp = 1 - me;
+
+  setEl('active-name', NAMES[me]);
+  setEl('switch-btn',  `Switch to ${NAMES[opp]}`);
+  setEl('alice-hits',  S.hits[0]);
+  setEl('bob-hits',    S.hits[1]);
+
+  // Avatar letter
+  const av = document.getElementById('player-avatar');
+  if (av) { av.textContent = NAMES[me][0]; }
+
+  // Hit pips
+  updatePips('alice-pips', S.hits[0], 'hit-alice');
+  updatePips('bob-pips',   S.hits[1], 'hit-bob');
+
+  const myTurn = (S.turn === me && S.phase === 2 && !S.firing);
+
+  if (S.phase === 2) {
+    const tEl = document.getElementById('turn-text');
+    if (myTurn) {
+      tEl.textContent = '✅ YOUR TURN';
+      tEl.style.color = 'var(--green)';
+    } else {
+      tEl.textContent = `⏳ ${NAMES[S.turn].toUpperCase()}'S TURN`;
+      tEl.style.color = 'var(--muted)';
+    }
+  } else {
+    setEl('turn-text', '');
+  }
+
+  if (S.phase === 2 && S.turn !== me) {
+    showMsg('game-msg', 'msg-pass',
+      `Pass the keyboard to ${NAMES[S.turn]} and click "Switch to ${NAMES[S.turn]}".`);
+  } else if (!myTurn && S.phase === 1) {
+    showMsg('game-msg', 'msg-wait', 'Waiting for both boards to be committed…');
+  }
+
+  paintBoards();
+  paintShotLog();
+}
+
+function updatePips(containerId, count, activeClass) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const pips = container.querySelectorAll('.pip');
+  pips.forEach((pip, i) => {
+    pip.className = 'pip' + (i < count ? ` ${activeClass}` : '');
+  });
+}
+
+function paintBoards() {
+  const me = S.myIdx;
+
+  for (let i = 0; i < 25; i++) {
+    const myEl  = document.getElementById(`my-${i}`);
+    const enmEl = document.getElementById(`enm-${i}`);
+    if (myEl)  { myEl.className = 'cell'; myEl.textContent = ''; myEl.onclick = null; }
+    if (enmEl) { enmEl.className = 'cell'; enmEl.textContent = ''; enmEl.onclick = null; }
+  }
+
+  for (const idx of S.ships[me]) {
+    const el = document.getElementById(`my-${idx}`);
+    if (el) { el.classList.add('ship'); el.textContent = '🚢'; }
+  }
+
+  const myFiredAt = new Set();
+  for (const s of S.shots) {
+    const idx = s.y * 5 + s.x;
+    if (s.playerIdx === me) {
+      myFiredAt.add(idx);
+      const el = document.getElementById(`enm-${idx}`);
+      if (el) {
+        el.className   = s.isHit ? 'cell my-hit' : 'cell my-miss';
+        el.textContent = s.isHit ? '✕' : '○';
+      }
+    } else {
+      const el = document.getElementById(`my-${idx}`);
+      if (el) {
+        el.className   = s.isHit ? 'cell hit-on-me' : 'cell miss-on-me';
+        el.textContent = s.isHit ? '💥' : '○';
+      }
+    }
+  }
+
+  if (S.firing && S.pendingCell !== null) {
+    const el = document.getElementById(`enm-${S.pendingCell}`);
+    if (el) { el.className = 'cell pending-bomb'; el.textContent = '💣'; }
+  }
+
+  if (S.explodingCell !== null) {
+    const el = document.getElementById(`enm-${S.explodingCell}`);
+    if (el) { el.className = 'cell exploding'; el.textContent = '💥'; }
+  }
+
+  const canFire = (S.phase === 2 && S.turn === me && !S.firing);
+  for (let i = 0; i < 25; i++) {
+    if (myFiredAt.has(i) || (S.firing && i === S.pendingCell) || i === S.explodingCell) continue;
+    const el = document.getElementById(`enm-${i}`);
+    if (!el) continue;
+    if (canFire) {
+      el.classList.add('can-click');
+      const x = i % 5, y = Math.floor(i / 5);
+      el.onclick = () => fire(i, x, y);
+    }
+  }
+}
+
+async function fire(idx, x, y) {
+  if (S.firing || S.phase !== 2 || S.turn !== S.myIdx) return;
+  S.firing = true;
+  S.pendingCell = idx;
+  paintBoards();
+
+  showMsg('game-msg', 'msg-wait',
+    `Firing at ${COL_LABELS[x]}${y + 1}… FHE computing hit/miss on encrypted board…`);
+
+  const result = await api('POST', '/api/fire', {
+    gameId:    S.gameId,
+    playerIdx: S.myIdx,
+    x, y,
+  }).catch(e => ({ error: e.message }));
+
+  S.firing = false;
+  S.pendingCell = null;
+
+  if (result.error) {
+    showMsg('game-msg', 'msg-wait', `Error: ${result.error}`);
+    paintBoards();
+    return;
+  }
+
+  // Explosion flash for ~500 ms before resolving to final state
+  S.explodingCell = idx;
+  paintBoards();
+  await new Promise(r => setTimeout(r, 500));
+  S.explodingCell = null;
+
+  showMsg('game-msg',
+    result.isHit ? 'msg-success' : 'msg-wait',
+    result.isHit
+      ? `🎯 HIT at ${COL_LABELS[x]}${y + 1}! Enemy ship destroyed.`
+      : `💨 Miss at ${COL_LABELS[x]}${y + 1}. No ship at that coordinate.`);
+
+  await refreshState();
+}
+
+function paintShotLog() {
+  const log = document.getElementById('shot-log');
+  if (!S.shots.length) {
+    log.innerHTML = '<div class="log-empty">No shots yet…</div>';
+    return;
+  }
+  log.innerHTML = [...S.shots].reverse().map(s => {
+    const who   = NAMES[s.playerIdx];
+    const coord = `${COL_LABELS[s.x]}${s.y + 1}`;
+    return s.isHit
+      ? `<div class="log-line log-hit">${who} → ${coord} — <b>HIT ✕</b></div>`
+      : `<div class="log-line log-miss">${who} → ${coord} — miss ○</div>`;
+  }).join('');
+}
+
+/* ── Polling ─────────────────────────────────────────────────────── */
+
+function startPolling() {
+  if (S.polling) return;
+  S.polling = setInterval(refreshState, 2500);
+}
+
+async function refreshState() {
+  if (S.gameId === null) return;
+  const data = await api('GET', `/api/game-state/${S.gameId}`).catch(() => null);
+  if (!data) return;
+
+  S.phase  = data.phase;
+  S.turn   = data.turn;
+  S.shots  = data.shots;
+  S.hits   = data.hitsScored;
+  S.winner = data.winner;
+
+  const PHASES = ['WAITING','COMMITTING','PLAYING','FINISHED'];
+  const BADGES = ['b-gray','b-yellow','b-blue','b-green'];
+  document.getElementById('phase-badge').className = `badge ${BADGES[data.phase]}`;
+  setEl('phase-badge', PHASES[data.phase]);
+
+  if (data.phase === 3) {
+    clearInterval(S.polling);
+    S.polling = null;
+    showGameOver(data.winner, data.players);
+    return;
+  }
+
+  if (document.getElementById('screen-game').classList.contains('active')) {
+    updateGameUI();
+  }
+}
+
+/* ── Game over ───────────────────────────────────────────────────── */
+
+function showGameOver(winnerAddr, players) {
+  const idx = players[0].toLowerCase() === winnerAddr.toLowerCase() ? 0 : 1;
+  setEl('winner-line', `${NAMES[idx]} wins`);
+  setEl('winner-detail',
+    `${S.hits[idx]} hits on encrypted board · ${S.shots.length} total shots fired`);
+  showScreen('over');
+}
+
+function resetGame() {
+  S = freshState();
+  setGidLabel('—');
+  document.getElementById('phase-badge').className = 'badge b-gray';
+  setEl('phase-badge', 'WAITING');
+  document.getElementById('hdr-info').innerHTML = '';
+  showScreen('setup');
+  init();
+}
+
+/* ── Grid builder ────────────────────────────────────────────────── */
+
+function buildGridLabeled(wrapperId, prefix, clickable) {
+  const wrap = document.getElementById(wrapperId);
+  if (!wrap) return;
+  wrap.innerHTML = '';
+
+  wrap.appendChild(div('axis-label', ''));
+  for (let x = 0; x < 5; x++) wrap.appendChild(div('axis-label', COL_LABELS[x]));
+
+  for (let y = 0; y < 5; y++) {
+    wrap.appendChild(div('axis-label', y + 1));
+    for (let x = 0; x < 5; x++) {
+      const idx  = y * 5 + x;
+      const cell = div('cell', '');
+      cell.id = `${prefix}-${idx}`;
+      if (clickable) {
+        cell.classList.add('can-click');
+        if (prefix === 'commit') cell.onclick = () => toggleShip(idx);
+      }
+      wrap.appendChild(cell);
+    }
+  }
+}
+
+/* ── Utilities ───────────────────────────────────────────────────── */
+
+function div(cls, text) {
+  const el = document.createElement('div');
+  el.className = cls;
+  el.textContent = text;
+  return el;
+}
+function setEl(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+function showScreen(name) {
+  ['setup','commit','game','over','handoff'].forEach(s => {
+    document.getElementById(`screen-${s}`).classList.toggle('active', s === name);
+  });
+}
+function setGidLabel(id) { setEl('gid-label', id === null ? '—' : `#${id}`); }
+function showMsg(id, cls, text) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = `msg ${cls} show`;
+  el.textContent = text;
+}
+function hideMsg(id) {
+  const el = document.getElementById(id);
+  if (el) el.className = 'msg';
+}
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const res  = await fetch(API + path, opts);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+
+init();
+</script>
+</body>
+</html>
